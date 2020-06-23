@@ -5,6 +5,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using NetCoreForce.Linq.Conventions.Naming;
 using NetCoreForce.Linq.Entity;
 using NetCoreForce.Linq.Extensions;
@@ -21,7 +22,7 @@ namespace NetCoreForce.Linq
             SelectType = selectType;
             SelectByExpression = new List<string>();
             OrderByExpression = new List<string>();
-            QueryType = QueryTypeEnum.Enumerator;
+            QueryType = QueryTypeEnum.EnumeratorAsync;
             WhereExpression = new List<string>();
         }
 
@@ -58,7 +59,7 @@ namespace NetCoreForce.Linq
             var sb = new StringBuilder();
             string selectString;
 
-            if (QueryType == QueryTypeEnum.Any || QueryType == QueryTypeEnum.Count)
+            if (QueryType == QueryTypeEnum.AnyAsync || QueryType == QueryTypeEnum.CountAsync)
             {
                 selectString = "COUNT()";
             }
@@ -141,10 +142,10 @@ namespace NetCoreForce.Linq
                         this.Visit(m.Arguments[0]);
                         break;
 
-                    case nameof(AsyncQueryable.First):
-                    case nameof(AsyncQueryable.FirstOrDefault):
-                    case nameof(AsyncQueryable.Single):
-                    case nameof(AsyncQueryable.SingleOrDefault):
+                    case nameof(AsyncQueryable.FirstAsync):
+                    case nameof(AsyncQueryable.FirstOrDefaultAsync):
+                    case nameof(AsyncQueryable.SingleAsync):
+                    case nameof(AsyncQueryable.SingleOrDefaultAsync):
                         
                         QueryType = (QueryTypeEnum) Enum.Parse(typeof(QueryTypeEnum), methodName);
                         Take = 2;
@@ -156,15 +157,15 @@ namespace NetCoreForce.Linq
                         this.Visit(m.Arguments[0]);
                         break;
                         
-                    case nameof(AsyncQueryable.ToList):
-                        QueryType = QueryTypeEnum.List;
+                    case nameof(AsyncQueryable.ToListAsync):
+                        QueryType = QueryTypeEnum.ListAsync;
 
                         this.Visit(m.Arguments[0]);
 
                         break;
 
-                    case nameof(AsyncQueryable.Any):
-                    case nameof(AsyncQueryable.Count):
+                    case nameof(AsyncQueryable.AnyAsync):
+                    case nameof(AsyncQueryable.CountAsync):
                         QueryType = (QueryTypeEnum) Enum.Parse(typeof(QueryTypeEnum), methodName);
                         if (m.Arguments.Count > 1)
                         {

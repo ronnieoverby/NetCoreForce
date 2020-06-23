@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NetCoreForce.Client.Models;
@@ -214,21 +215,9 @@ namespace NetCoreForce.Client
         /// <param name="queryString">SOQL query string, without any URL escaping/encoding</param>
         /// <param name="queryAll">Optional. True if deleted records are to be included.await Defaults to false.</param>
         /// <param name="batchSize">Optional. Size of result batches between 200 and 2000</param>
+        /// <param name="token">Optional. A cancellation token.</param>
         /// <returns><see cref="IAsyncEnumerable{T}"/> of results</returns>
-        public IAsyncEnumerable<T> QueryAsync<T>(string queryString, bool queryAll = false, int? batchSize = null)
-        {
-            return AsyncEnumerable.CreateEnumerable(() => QueryAsyncEnumerator<T>(queryString, queryAll, batchSize));
-        }
-
-        /// <summary>
-        /// Retrieve a <see cref="IAsyncEnumerator{T}"/> using a SOQL query. Batches will be retrieved asynchronously.
-        /// <para>When using the iterator, the initial result batch will be returned as soon as it is received. The additional result batches will be retrieved only as needed.</para>
-        /// </summary>
-        /// <param name="queryString">SOQL query string, without any URL escaping/encoding</param>
-        /// <param name="queryAll">Optional. True if deleted records are to be included.await Defaults to false.</param>
-        /// <param name="batchSize">Optional. Size of result batches between 200 and 2000</param>
-        /// <returns><see cref="IAsyncEnumerator{T}"/> of results</returns>
-        public IAsyncEnumerator<T> QueryAsyncEnumerator<T>(string queryString, bool queryAll = false, int? batchSize = null)
+        public async IAsyncEnumerable<T> QueryAsync<T>(string queryString, bool queryAll = false, int? batchSize = null, [EnumeratorCancellation] CancellationToken token = default)
         {
             Dictionary<string, string> headers = new Dictionary<string, string>();
 
@@ -250,9 +239,17 @@ namespace NetCoreForce.Client
             var done = false;
             var nextRecordsUri = UriFormatter.Query(InstanceUrl, ApiVersion, queryString, queryAll);
 
-            return AsyncEnumerable.CreateEnumerator(MoveNextAsync, Current, Dispose);
+            try
+            {
+                while (await MoveNextAsync())
+                    yield return Current();
+            }
+            finally
+            {
+                Dispose();
+            }
 
-            async Task<bool> MoveNextAsync(CancellationToken token)
+            async Task<bool> MoveNextAsync()
             {
                 if (token.IsCancellationRequested)
                 {
@@ -306,6 +303,19 @@ namespace NetCoreForce.Client
                 currentBatchEnumerator?.Dispose();
                 jsonClient.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Retrieve a <see cref="IAsyncEnumerator{T}"/> using a SOQL query. Batches will be retrieved asynchronously.
+        /// <para>When using the iterator, the initial result batch will be returned as soon as it is received. The additional result batches will be retrieved only as needed.</para>
+        /// </summary>
+        /// <param name="queryString">SOQL query string, without any URL escaping/encoding</param>
+        /// <param name="queryAll">Optional. True if deleted records are to be included.await Defaults to false.</param>
+        /// <param name="batchSize">Optional. Size of result batches between 200 and 2000</param>
+        /// <returns><see cref="IAsyncEnumerator{T}"/> of results</returns>
+        public IAsyncEnumerator<T> QueryAsyncEnumerator<T>(string queryString, bool queryAll = false, int? batchSize = null)
+        {
+            return QueryAsync<T>(queryString, queryAll, batchSize).GetAsyncEnumerator();
         }
 
         /// <summary>

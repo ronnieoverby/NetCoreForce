@@ -74,11 +74,11 @@ namespace SampleConsole
                 IAsyncEnumerable<SfContact> contactsEnumerable = client.QueryAsync<SfContact>("SELECT Id, Name FROM Contact ", batchSize: 200);
 
                 // Get the enumerator, in a using block for proper disposal
-                using (IAsyncEnumerator<SfContact> contactsEnumerator = contactsEnumerable.GetEnumerator())
+                await using (IAsyncEnumerator<SfContact> contactsEnumerator = contactsEnumerable.GetAsyncEnumerator())
                 {
                     // MoveNext() will execute the query and get the first batch of results.
                     // Once the inital result batch has been exhausted, the remaining batches, if any, will be retrieved.
-                    while (await contactsEnumerator.MoveNext())
+                    while (await contactsEnumerator.MoveNextAsync())
                     {
                         SfContact contact = contactsEnumerator.Current;
                         // process your results

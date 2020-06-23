@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
@@ -26,20 +27,20 @@ namespace NetCoreForce.Linq
             var cmd = visitor.Translate(PartialEvaluator.Eval(expression));
             switch (visitor.QueryType)
             {
-                case QueryTypeEnum.FirstOrDefault:
-                    return ProduceAsyncEnumerable(cmd).FirstOrDefault();
-                case QueryTypeEnum.First:
-                    return ProduceAsyncEnumerable(cmd).First();
-                case QueryTypeEnum.Single:
-                    return ProduceAsyncEnumerable(cmd).Single();
-                case QueryTypeEnum.SingleOrDefault:
-                    return ProduceAsyncEnumerable(cmd).SingleOrDefault();
-                case QueryTypeEnum.Count:
+                case QueryTypeEnum.FirstOrDefaultAsync:
+                    return ProduceAsyncEnumerable(cmd).FirstOrDefaultAsync();
+                case QueryTypeEnum.FirstAsync:
+                    return ProduceAsyncEnumerable(cmd).FirstAsync();
+                case QueryTypeEnum.SingleAsync:
+                    return ProduceAsyncEnumerable(cmd).SingleAsync();
+                case QueryTypeEnum.SingleOrDefaultAsync:
+                    return ProduceAsyncEnumerable(cmd).SingleOrDefaultAsync();
+                case QueryTypeEnum.CountAsync:
                     return ProduceCountAsync(cmd);
-                case QueryTypeEnum.Any:
+                case QueryTypeEnum.AnyAsync:
                     return ProduceCountAsync(cmd).ContinueWith(task => task.Result > 0);
-                case QueryTypeEnum.List:
-                    return ProduceAsyncEnumerable(cmd).ToList();
+                case QueryTypeEnum.ListAsync:
+                    return ProduceAsyncEnumerable(cmd).ToListAsync();
 //                    var argument = typeof(TResult).GetGenericArguments()[0];
 //
 //                    var method = GetType().GetMethod("ProduceAsyncEnumerable", BindingFlags.Instance | BindingFlags.NonPublic).MakeGenericMethod(argument);
@@ -77,7 +78,7 @@ namespace NetCoreForce.Linq
 //                        });
 //                    }
 
-                case QueryTypeEnum.Enumerator:
+                case QueryTypeEnum.EnumeratorAsync:
                 default:
                     return Task.FromResult(ProduceAsyncEnumerator(cmd));
             }
@@ -86,8 +87,12 @@ namespace NetCoreForce.Linq
 
         protected abstract Task<int> ProduceCountAsync(string cmd);
 
-        protected IAsyncEnumerable<T> ProduceAsyncEnumerable(string cmd)
-            => AsyncEnumerable.CreateEnumerable(() => ProduceAsyncEnumerator(cmd));
+        protected async IAsyncEnumerable<T> ProduceAsyncEnumerable(string cmd)
+        {
+            var enumerator = ProduceAsyncEnumerator(cmd);
+            while (await enumerator.MoveNextAsync())
+                yield return enumerator.Current;
+        }
 
 
         protected abstract IAsyncEnumerator<T> ProduceAsyncEnumerator(string cmd);
@@ -105,12 +110,12 @@ namespace NetCoreForce.Linq
             return new Query<TElement>(this, expression);
         }
 
-        public Task<TResult> ExecuteAsync<TResult>(Expression expression, CancellationToken token) 
+        public ValueTask<TResult> ExecuteAsync<TResult>(Expression expression, CancellationToken token) 
         {
             var result = Execute(expression);
-            return (Task<TResult>) result;
+            return (ValueTask<TResult>) result;
         }
-        
+      
         #endregion
     }
 }

@@ -53,11 +53,10 @@ namespace NetCoreForce.Linq.Helper
 
         public IAsyncQueryProvider Provider { get; }
 
-        public IAsyncEnumerator<T> GetEnumerator()
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
         {
-            return Provider.ExecuteAsync<IAsyncEnumerator<T>>(Expression, CancellationToken.None).GetAwaiter().GetResult();
+            return Provider.ExecuteAsync<IAsyncEnumerator<T>>(Expression, cancellationToken).GetAwaiter().GetResult();
         }
-        
 
         public override string ToString()
         {
